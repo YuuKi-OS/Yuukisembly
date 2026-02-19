@@ -9,7 +9,7 @@
 # Yuuki Chat — Binary Edition
 
 **Chat with the Yuuki API in pure assembly.**<br>
-**No frameworks, no high-level languages. Just registers, syscalls, and willpower.**
+**No frameworks, no high-level languages. Just registers, syscalls, TLS, and willpower.**
 
 <br>
 
@@ -29,6 +29,8 @@
 &nbsp;
 [![ARM64](https://img.shields.io/badge/ARM64-222222?style=flat-square&logo=arm&logoColor=white)](#)
 &nbsp;
+[![OpenSSL](https://img.shields.io/badge/OpenSSL_TLS-222222?style=flat-square&logo=openssl&logoColor=white)](#)
+&nbsp;
 [![Android](https://img.shields.io/badge/Android_(Termux)-222222?style=flat-square&logo=android&logoColor=white)](#)
 
 <br>
@@ -42,11 +44,11 @@
 <td width="50%" valign="top">
 
 **Direct chat with the Yuuki API.**<br><br>
-Three architecture targets.<br>
-No high-level dependencies.<br>
-Direct syscalls to the kernel.<br>
-HTTP over raw sockets.<br>
-Compatible with glibc and Bionic.<br>
+Three independent architecture targets.<br>
+Full TLS on all three platforms.<br>
+Native OpenSSL calls from assembly registers.<br>
+HTTP/1.1 over raw TLS sockets.<br>
+DNS resolution via `getaddrinfo`.<br>
 Builds with GNU Assembler (`as`) and `ld`.
 
 </td>
@@ -83,9 +85,11 @@ Zero frameworks. Zero interpreters.
 
 **Yuukisembly** is a chat client for the [Yuuki API](https://github.com/YuuKi-OS/Yuuki-api) written entirely in **pure assembly**. No C, no Python, no Node.js — just machine instructions, system calls, and direct access to network sockets.
 
-The project includes three independent implementations covering the most relevant targets: **x86\_64 Linux** for conventional PCs, **ARM64 Linux** for ARM servers and Raspberry Pi, and **ARM64 Android** for use from Termux. Each version adapts to the ABI differences, struct offsets, and linker requirements of each platform.
+Every version implements the full HTTPS stack from scratch in assembly: **DNS resolution** via `getaddrinfo`, **TCP socket** via syscall, **TLS handshake** by calling OpenSSL functions directly from registers (`SSL_CTX_new`, `SSL_connect`, `SSL_write`, `SSL_read`), and **HTTP/1.1** request construction and response parsing with manual `\r\n\r\n` header skipping — byte by byte, no stdlib.
 
-Built with **GNU Assembler (`as`)** and linked with **`ld`**. Nothing else required.
+The three implementations are not ports of each other. Each one is written from scratch for its target, adapting to a completely different ABI, syscall table, struct layout, and linker.
+
+Built with **GNU Assembler (`as`)** and linked with **`ld`**, **`-lssl`**, and **`-lcrypto`**. Nothing else.
 
 <br>
 
@@ -101,11 +105,11 @@ Built with **GNU Assembler (`as`)** and linked with **`ld`**. Nothing else requi
 
 <br>
 
-| File | Target | Platform |
-|:-----|:-------|:---------|
-| `yuuki-x86_64.s` | Linux x86\_64 | Linux PC |
-| `yuuki-arm64-linux.s` | Linux ARM64 | Raspberry Pi, Mac M1, ARM server |
-| `yuuki-arm64-android.s` | Android ARM64 | Termux |
+| File | Target | Platform | ABI | TLS |
+|:-----|:-------|:---------|:----|:----|
+| `yuuki-x86_64.s` | Linux x86\_64 | Linux PC | System V AMD64 | OpenSSL via glibc |
+| `yuuki-arm64-linux.s` | Linux ARM64 | Raspberry Pi, Mac M1, ARM server | AAPCS64 / glibc | OpenSSL via glibc |
+| `yuuki-arm64-android.s` | Android ARM64 | Termux | AAPCS64 / Bionic | OpenSSL via Bionic |
 
 <br>
 
@@ -124,8 +128,10 @@ Built with **GNU Assembler (`as`)** and linked with **`ld`**. Nothing else requi
 ### x86\_64 Linux
 
 ```bash
+sudo apt install binutils libssl-dev
 as -o yuuki-x86_64.o yuuki-x86_64.s
-ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o yuuki-x86_64 yuuki-x86_64.o -lc
+ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 \
+   -o yuuki-x86_64 yuuki-x86_64.o -lc -lssl -lcrypto
 ./yuuki-x86_64
 ```
 
@@ -134,8 +140,10 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o yuuki-x86_64 yuuki-x86_64.o -l
 ### ARM64 Linux (Raspberry Pi, server)
 
 ```bash
+sudo apt install binutils libssl-dev
 as -o yuuki-arm64-linux.o yuuki-arm64-linux.s
-ld -dynamic-linker /lib/ld-linux-aarch64.so.1 -o yuuki-arm64-linux yuuki-arm64-linux.o -lc
+ld -dynamic-linker /lib/ld-linux-aarch64.so.1 \
+   -o yuuki-arm64-linux yuuki-arm64-linux.o -lc -lssl -lcrypto
 ./yuuki-arm64-linux
 ```
 
@@ -144,9 +152,12 @@ ld -dynamic-linker /lib/ld-linux-aarch64.so.1 -o yuuki-arm64-linux yuuki-arm64-l
 ### ARM64 Android (Termux)
 
 ```bash
-pkg install binutils
+pkg install binutils openssl
 as -o yuuki-arm64-android.o yuuki-arm64-android.s
-ld -dynamic-linker /system/bin/linker64 --pie -o yuuki-arm64-android yuuki-arm64-android.o -lc
+ld -dynamic-linker /system/bin/linker64 --pie \
+   -rpath /data/data/com.termux/files/usr/lib \
+   -L/data/data/com.termux/files/usr/lib \
+   -o yuuki-arm64-android yuuki-arm64-android.o -lc -lssl -lcrypto
 ./yuuki-arm64-android
 ```
 
@@ -169,7 +180,54 @@ make android # force ARM64 Android
 
 <div align="center">
 
-## Technical Differences
+## How the TLS Stack Works
+
+</div>
+
+<br>
+
+There are no wrappers. Each version calls OpenSSL directly from assembly registers, following the platform ABI entirely by hand.
+
+```
+  input_buf (stdin)
+       │
+       ▼
+  build_json          ← escape " and \ byte by byte (no stdlib)
+       │
+       ▼
+  getaddrinfo         ← DNS resolution (libc extern)
+       │
+       ▼
+  SYS_socket          ← raw TCP socket syscall
+  SYS_connect         ← TCP connect syscall
+       │
+       ▼
+  TLS_client_method   ┐
+  SSL_CTX_new         │
+  SSL_new             ├─ OpenSSL externs called directly from registers
+  SSL_set_fd          │
+  SSL_connect         ┘
+       │
+       ▼
+  SSL_write           ← send HTTP/1.1 POST request
+  SSL_read (loop)     ← receive full response
+       │
+       ▼
+  skip_headers        ← find \r\n\r\n manually, byte by byte
+       │
+       ▼
+  SYS_write           ← print response to stdout
+```
+
+<br>
+
+---
+
+<br>
+
+<div align="center">
+
+## Technical Differences Between Targets
 
 </div>
 
@@ -177,22 +235,62 @@ make android # force ARM64 Android
 
 <table>
 <tr>
-<td width="50%" valign="top">
+<td width="33%" valign="top">
 
-<h3>Android (Bionic)</h3>
+<h3>x86_64 Linux</h3>
 
-`struct addrinfo.ai_addr` is at **offset 32**.<br><br>
-Requires `--pie` (Position Independent Executable) at link time.<br><br>
-Dynamic linker is `/system/bin/linker64` instead of the standard glibc one.
+**Calling convention:** System V AMD64.<br>
+Args in `rdi`, `rsi`, `rdx`, `rcx`, `r8`, `r9`.<br><br>
+
+**Syscall instruction:** `syscall`<br><br>
+
+**Syscall numbers:**<br>
+`read=0`, `write=1`, `close=3`<br>
+`socket=41`, `connect=42`, `exit=60`<br><br>
+
+**Stack alignment:** 16 bytes required before any `call`. Managed manually with `sub $8, %rsp` after odd-count pushes.<br><br>
+
+**`struct addrinfo.ai_addr`:** offset `24` (glibc).<br><br>
+
+**`--pie`:** not required.
 
 </td>
-<td width="50%" valign="top">
+<td width="33%" valign="top">
 
-<h3>Linux (glibc)</h3>
+<h3>ARM64 Linux</h3>
 
-`struct addrinfo.ai_addr` is at **offset 24**.<br><br>
-`--pie` is not required for simple executables.<br><br>
-Standard linker: `/lib64/ld-linux-x86-64.so.2` (x86\_64) or `/lib/ld-linux-aarch64.so.1` (ARM64).
+**Calling convention:** AAPCS64.<br>
+Args in `x0`–`x7`. Callee-saved: `x19`–`x28`.<br><br>
+
+**Syscall instruction:** `svc #0`<br><br>
+
+**Syscall numbers:**<br>
+`read=63`, `write=64`, `close=57`<br>
+`socket=198`, `connect=203`, `exit=93`<br><br>
+
+**Stack alignment:** 16 bytes. Frame managed with `stp x29, x30, [sp, #-N]!` / `ldp` pairs.<br><br>
+
+**`struct addrinfo.ai_addr`:** offset `24` (glibc).<br><br>
+
+**`--pie`:** not required.
+
+</td>
+<td width="33%" valign="top">
+
+<h3>ARM64 Android</h3>
+
+**Calling convention:** AAPCS64 (same registers as Linux ARM64).<br><br>
+
+**Syscall instruction:** `svc #0`<br><br>
+
+**Syscall numbers:** same as ARM64 Linux.<br><br>
+
+**Stack alignment:** 16 bytes. Same frame convention.<br><br>
+
+**`struct addrinfo.ai_addr`:** offset `32` (Bionic). This is the critical difference — using `24` here silently reads the wrong pointer.<br><br>
+
+**`--pie`:** required by Android's linker.<br>
+**`-rpath` / `-L`:** required to find Termux OpenSSL.
 
 </td>
 </tr>
@@ -200,24 +298,34 @@ Standard linker: `/lib64/ld-linux-x86-64.so.2` (x86\_64) or `/lib/ld-linux-aarch
 
 <br>
 
-```
-                        Yuukisembly
-                             |
-              +--------------+--------------+
-              |              |              |
-         x86_64          ARM64           ARM64
-          Linux           Linux         Android
-              |              |              |
-              v              v              v
-           glibc          glibc          Bionic
-         offset 24      offset 24      offset 32
-         no --pie        no --pie       + --pie
-              |              |              |
-              +--------------+--------------+
-                             |
-                        Yuuki API
-                       (HTTP / socket)
-```
+### Syscall table comparison
+
+| Operation | x86\_64 | ARM64 Linux | ARM64 Android |
+|:----------|:--------|:------------|:--------------|
+| `read` | `0` | `63` | `63` |
+| `write` | `1` | `64` | `64` |
+| `close` | `3` | `57` | `57` |
+| `socket` | `41` | `198` | `198` |
+| `connect` | `42` | `203` | `203` |
+| `exit` | `60` | `93` | `93` |
+| instruction | `syscall` | `svc #0` | `svc #0` |
+
+<br>
+
+### struct addrinfo offsets
+
+| Field | x86\_64 (glibc) | ARM64 Linux (glibc) | ARM64 Android (Bionic) |
+|:------|:----------------|:--------------------|:-----------------------|
+| `ai_flags` | `0` | `0` | `0` |
+| `ai_family` | `4` | `4` | `4` |
+| `ai_socktype` | `8` | `8` | `8` |
+| `ai_protocol` | `12` | `12` | `12` |
+| `ai_addrlen` | `16` | `16` | `16` |
+| `ai_addr` | `24` | `24` | **`32`** |
+| `ai_canonname` | `32` | `32` | `24` |
+| `ai_next` | `40` | `40` | `40` |
+
+The swap between `ai_addr` and `ai_canonname` in Bionic is the single most common breakage point when porting network code from Linux to Android.
 
 <br>
 
@@ -235,9 +343,9 @@ Standard linker: `/lib64/ld-linux-x86-64.so.2` (x86\_64) or `/lib/ld-linux-aarch
 
 ```
 Yuukisembly/
-    yuuki-x86_64.s          # x86_64 Linux implementation
-    yuuki-arm64-linux.s     # ARM64 Linux implementation (glibc)
-    yuuki-arm64-android.s   # ARM64 Android implementation (Bionic)
+    yuuki-x86_64.s          # x86_64 Linux  — System V AMD64 ABI, TLS, HTTP
+    yuuki-arm64-linux.s     # ARM64 Linux   — AAPCS64 / glibc, TLS, HTTP
+    yuuki-arm64-android.s   # ARM64 Android — AAPCS64 / Bionic, TLS, HTTP, PIE
     Makefile                # per-target build rules
     LICENSE                 # MIT
 ```
