@@ -8,14 +8,14 @@
 
 # Yuuki Chat — Binary Edition
 
-**Chat con la API de Yuuki en assembly puro.**<br>
-**Sin frameworks, sin lenguajes de alto nivel. Solo registros, syscalls y voluntad.**
+**Chat with the Yuuki API in pure assembly.**<br>
+**No frameworks, no high-level languages. Just registers, syscalls, and willpower.**
 
 <br>
 
-<a href="#compilar"><img src="https://img.shields.io/badge/COMPILAR-000000?style=for-the-badge" alt="Compilar"></a>
+<a href="#build"><img src="https://img.shields.io/badge/BUILD-000000?style=for-the-badge" alt="Build"></a>
 &nbsp;&nbsp;
-<a href="https://github.com/YuuKi-OS/Yuukisembly"><img src="https://img.shields.io/badge/REPOSITORIO-000000?style=for-the-badge" alt="Repositorio"></a>
+<a href="https://github.com/YuuKi-OS/Yuukisembly"><img src="https://img.shields.io/badge/REPOSITORY-000000?style=for-the-badge" alt="Repository"></a>
 &nbsp;&nbsp;
 <a href="https://github.com/sponsors/aguitauwu"><img src="https://img.shields.io/badge/SPONSOR-000000?style=for-the-badge" alt="Sponsor"></a>
 
@@ -41,25 +41,25 @@
 <tr>
 <td width="50%" valign="top">
 
-**Chat directo con la API de Yuuki.**<br><br>
-Tres targets de arquitectura.<br>
-Sin dependencias de alto nivel.<br>
-Syscalls directas al kernel.<br>
-Conexión HTTP sobre sockets raw.<br>
-Compatible con glibc y Bionic.<br>
-Compila con GNU Assembler (`as`) y `ld`.
+**Direct chat with the Yuuki API.**<br><br>
+Three architecture targets.<br>
+No high-level dependencies.<br>
+Direct syscalls to the kernel.<br>
+HTTP over raw sockets.<br>
+Compatible with glibc and Bionic.<br>
+Builds with GNU Assembler (`as`) and `ld`.
 
 </td>
 <td width="50%" valign="top">
 
-**Multiplataforma real.**<br><br>
+**Truly cross-platform.**<br><br>
 Linux x86\_64 (PC).<br>
 Linux ARM64 (Raspberry Pi, Mac M1).<br>
 Android ARM64 (Termux).<br>
 <br>
-Makefile incluido para compilación rápida.<br>
+Makefile included for fast builds.<br>
 <br>
-Cero frameworks. Cero intérpretes.
+Zero frameworks. Zero interpreters.
 
 </td>
 </tr>
@@ -75,17 +75,17 @@ Cero frameworks. Cero intérpretes.
 
 <div align="center">
 
-## ¿Qué es Yuukisembly?
+## What is Yuukisembly?
 
 </div>
 
 <br>
 
-**Yuukisembly** es un cliente de chat para la [API de Yuuki](https://github.com/YuuKi-OS/Yuuki-api) escrito completamente en **assembly puro**. Sin C, sin Python, sin Node.js — solo instrucciones de máquina, llamadas al sistema y acceso directo a sockets de red.
+**Yuukisembly** is a chat client for the [Yuuki API](https://github.com/YuuKi-OS/Yuuki-api) written entirely in **pure assembly**. No C, no Python, no Node.js — just machine instructions, system calls, and direct access to network sockets.
 
-El proyecto incluye tres implementaciones independientes para cubrir los targets más relevantes: **x86\_64 Linux** para PCs convencionales, **ARM64 Linux** para servidores ARM y Raspberry Pi, y **ARM64 Android** para usar desde Termux. Cada versión adapta las diferencias de ABI, offsets de structs y requisitos del linker de cada plataforma.
+The project includes three independent implementations covering the most relevant targets: **x86\_64 Linux** for conventional PCs, **ARM64 Linux** for ARM servers and Raspberry Pi, and **ARM64 Android** for use from Termux. Each version adapts to the ABI differences, struct offsets, and linker requirements of each platform.
 
-Construido con **GNU Assembler (`as`)** y enlazado con **`ld`**. No se requiere nada más.
+Built with **GNU Assembler (`as`)** and linked with **`ld`**. Nothing else required.
 
 <br>
 
@@ -95,16 +95,16 @@ Construido con **GNU Assembler (`as`)** y enlazado con **`ld`**. No se requiere 
 
 <div align="center">
 
-## Versiones
+## Targets
 
 </div>
 
 <br>
 
-| Archivo | Target | Plataforma |
-|:--------|:-------|:-----------|
-| `yuuki-x86_64.s` | Linux x86\_64 | PC Linux |
-| `yuuki-arm64-linux.s` | Linux ARM64 | Raspberry Pi, Mac M1, servidor ARM |
+| File | Target | Platform |
+|:-----|:-------|:---------|
+| `yuuki-x86_64.s` | Linux x86\_64 | Linux PC |
+| `yuuki-arm64-linux.s` | Linux ARM64 | Raspberry Pi, Mac M1, ARM server |
 | `yuuki-arm64-android.s` | Android ARM64 | Termux |
 
 <br>
@@ -115,7 +115,7 @@ Construido con **GNU Assembler (`as`)** y enlazado con **`ld`**. No se requiere 
 
 <div align="center">
 
-## Compilar
+## Build
 
 </div>
 
@@ -131,7 +131,7 @@ ld -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o yuuki-x86_64 yuuki-x86_64.o -l
 
 <br>
 
-### ARM64 Linux (Raspberry Pi, servidor)
+### ARM64 Linux (Raspberry Pi, server)
 
 ```bash
 as -o yuuki-arm64-linux.o yuuki-arm64-linux.s
@@ -152,13 +152,13 @@ ld -dynamic-linker /system/bin/linker64 --pie -o yuuki-arm64-android yuuki-arm64
 
 <br>
 
-### Con Makefile
+### With Makefile
 
 ```bash
-make        # compila el target detectado automáticamente
-make x86    # fuerza x86_64
-make arm    # fuerza ARM64 Linux
-make android # fuerza ARM64 Android
+make         # auto-detects target
+make x86     # force x86_64
+make arm     # force ARM64 Linux
+make android # force ARM64 Android
 ```
 
 <br>
@@ -169,7 +169,7 @@ make android # fuerza ARM64 Android
 
 <div align="center">
 
-## Diferencias técnicas entre plataformas
+## Technical Differences
 
 </div>
 
@@ -181,18 +181,18 @@ make android # fuerza ARM64 Android
 
 <h3>Android (Bionic)</h3>
 
-`struct addrinfo.ai_addr` está en **offset 32**.<br><br>
-Requiere `--pie` (Position Independent Executable) al enlazar.<br><br>
-El linker dinámico es `/system/bin/linker64` en lugar del estándar de glibc.
+`struct addrinfo.ai_addr` is at **offset 32**.<br><br>
+Requires `--pie` (Position Independent Executable) at link time.<br><br>
+Dynamic linker is `/system/bin/linker64` instead of the standard glibc one.
 
 </td>
 <td width="50%" valign="top">
 
 <h3>Linux (glibc)</h3>
 
-`struct addrinfo.ai_addr` está en **offset 24**.<br><br>
-No requiere `--pie` para ejecutables estáticos simples.<br><br>
-Linker estándar: `/lib64/ld-linux-x86-64.so.2` (x86\_64) o `/lib/ld-linux-aarch64.so.1` (ARM64).
+`struct addrinfo.ai_addr` is at **offset 24**.<br><br>
+`--pie` is not required for simple executables.<br><br>
+Standard linker: `/lib64/ld-linux-x86-64.so.2` (x86\_64) or `/lib/ld-linux-aarch64.so.1` (ARM64).
 
 </td>
 </tr>
@@ -215,7 +215,7 @@ Linker estándar: `/lib64/ld-linux-x86-64.so.2` (x86\_64) o `/lib/ld-linux-aarch
               |              |              |
               +--------------+--------------+
                              |
-                        API de Yuuki
+                        Yuuki API
                        (HTTP / socket)
 ```
 
@@ -227,7 +227,7 @@ Linker estándar: `/lib64/ld-linux-x86-64.so.2` (x86\_64) o `/lib/ld-linux-aarch
 
 <div align="center">
 
-## Estructura del repositorio
+## Repository Layout
 
 </div>
 
@@ -235,10 +235,10 @@ Linker estándar: `/lib64/ld-linux-x86-64.so.2` (x86\_64) o `/lib/ld-linux-aarch
 
 ```
 Yuukisembly/
-    yuuki-x86_64.s          # implementación x86_64 Linux
-    yuuki-arm64-linux.s     # implementación ARM64 Linux (glibc)
-    yuuki-arm64-android.s   # implementación ARM64 Android (Bionic)
-    Makefile                # compilación por target
+    yuuki-x86_64.s          # x86_64 Linux implementation
+    yuuki-arm64-linux.s     # ARM64 Linux implementation (glibc)
+    yuuki-arm64-android.s   # ARM64 Android implementation (Bionic)
+    Makefile                # per-target build rules
     LICENSE                 # MIT
 ```
 
@@ -250,20 +250,20 @@ Yuukisembly/
 
 <div align="center">
 
-## Proyectos relacionados
+## Related Projects
 
 </div>
 
 <br>
 
-| Proyecto | Descripción |
-|:---------|:------------|
-| [Yuuki API](https://github.com/YuuKi-OS/Yuuki-api) | Plataforma de inferencia con gestión de claves y seguimiento de uso |
-| [Yuuki Chat](https://github.com/YuuKi-OS/yuuki-chat) | Interfaz web de chat con estilo macOS |
-| [yuy](https://github.com/YuuKi-OS/yuy) | CLI para descargar, gestionar y ejecutar modelos Yuuki |
-| [yuy-chat](https://github.com/YuuKi-OS/yuy-chat) | Interfaz TUI para conversaciones locales con IA |
-| [Yuuki-best](https://huggingface.co/OpceanAI/Yuuki-best) | Pesos del modelo flagship |
-| [Yuuki Space](https://huggingface.co/spaces/OpceanAI/Yuuki) | Demo interactivo en la web |
+| Project | Description |
+|:--------|:------------|
+| [Yuuki API](https://github.com/YuuKi-OS/Yuuki-api) | Inference platform with key management and usage tracking |
+| [Yuuki Chat](https://github.com/YuuKi-OS/yuuki-chat) | macOS-styled web chat interface |
+| [yuy](https://github.com/YuuKi-OS/yuy) | CLI for downloading, managing, and running Yuuki models |
+| [yuy-chat](https://github.com/YuuKi-OS/yuy-chat) | TUI chat interface for local AI conversations |
+| [Yuuki-best](https://huggingface.co/OpceanAI/Yuuki-best) | Flagship model weights |
+| [Yuuki Space](https://huggingface.co/spaces/OpceanAI/Yuuki) | Web-based interactive demo |
 
 <br>
 
@@ -305,7 +305,7 @@ Yuukisembly/
 
 <div align="center">
 
-## Licencia
+## License
 
 </div>
 
@@ -343,7 +343,7 @@ SOFTWARE.
 
 <div align="center">
 
-**Construido con paciencia, un ensamblador y cero abstracciones.**
+**Built with patience, an assembler, and zero abstractions.**
 
 <br>
 
